@@ -9,6 +9,6 @@ services:
         value: production
       - key: OPENAI_API_KEY
         sync: false  # Set this in Render dashboard
-    healthCheckPath: /
+    healthCheckPath: /api/health
     plan: starter  # Change to 'standard' or 'pro' for production
 
