@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RAG LangChain Agent - Query Interface</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            opacity: 0.9;
+            font-size: 1.1em;
+        }
+
+        .content {
+            padding: 40px;
+        }
+
+        .form-group {
+            margin-bottom: 25px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 10px;
+            font-weight: 600;
+            color: #333;
+            font-size: 1.1em;
+        }
+
+        input[type="text"],
+        textarea {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 1em;
+            transition: border-color 0.3s;
+        }
+
+        input[type="text"]:focus,
+        textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 100px;
+            font-family: inherit;
+        }
+
+        .url-input-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        .url-input-group input {
+            flex: 1;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1em;
+            font-weight: 600;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+        }
+
+        .btn-secondary:hover {
+            box-shadow: 0 5px 15px rgba(108, 117, 125, 0.4);
+        }
+
+        .btn-danger {
+            background: #dc3545;
+        }
+
+        .btn-danger:hover {
+            box-shadow: 0 5px 15px rgba(220, 53, 69, 0.4);
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .results {
+            margin-top: 30px;
+            display: none;
+        }
+
+        .results.show {
+            display: block;
+        }
+
+        .results-header {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+
+        .results-header h2 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .results-header .meta {
+            color: #666;
+            font-size: 0.9em;
+        }
+
+        .document-list {
+            max-height: 600px;
+            overflow-y: auto;
+        }
+
+        .document-item {
+            background: #f8f9fa;
+            padding: 20px;
+            margin-bottom: 15px;
+            border-radius: 10px;
+            border-left: 4px solid #667eea;
+        }
+
+        .document-item h3 {
+            color: #667eea;
+            margin-bottom: 10px;
+            font-size: 1em;
+        }
+
+        .document-content {
+            color: #555;
+            line-height: 1.6;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 40px;
+        }
+
+        .loading.show {
+            display: block;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .error {
+            background: #fee;
+            color: #c33;
+            padding: 15px;
+            border-radius: 10px;
+            margin-top: 20px;
+            border-left: 4px solid #c33;
+            display: none;
+        }
+
+        .error.show {
+            display: block;
+        }
+
+        .url-list {
+            margin-top: 10px;
+        }
+
+        .url-tag {
+            display: inline-block;
+            background: #e9ecef;
+            padding: 8px 15px;
+            border-radius: 20px;
+            margin: 5px 5px 5px 0;
+            font-size: 0.9em;
+            color: #495057;
+        }
+
+        .url-tag .remove {
+            margin-left: 8px;
+            cursor: pointer;
+            color: #dc3545;
+            font-weight: bold;
+        }
+
+        .url-tag .remove:hover {
+            color: #c82333;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔍 RAG LangChain Agent</h1>
+            <p>Query documents from URLs using Retrieval-Augmented Generation</p>
+        </div>
+
+        <div class="content">
+            <form id="queryForm">
+                <div class="form-group">
+                    <label for="urls">Document URLs (one per line or comma-separated)</label>
+                    <textarea 
+                        id="urls" 
+                        placeholder="https://en.wikipedia.org/wiki/Sasaram&#10;https://example.com/article"
+                        rows="4"
+                    ></textarea>
+                    <div class="url-list" id="urlList"></div>
+                </div>
+
+                <div class="form-group">
+                    <label for="question">Your Question</label>
+                    <textarea 
+                        id="question" 
+                        placeholder="What is Retrieval-Augmented Generation?"
+                        rows="3"
+                    ></textarea>
+                </div>
+
+                <button type="submit" class="btn" id="submitBtn">
+                    🔎 Query Documents
+                </button>
+            </form>
+
+            <div class="loading" id="loading">
+                <div class="spinner"></div>
+                <p>Processing your query... This may take a moment.</p>
+            </div>
+
+            <div class="error" id="error"></div>
+
+            <div class="results" id="results">
+                <div class="results-header">
+                    <h2>📄 Retrieved Documents</h2>
+                    <div class="meta">
+                        <span id="docCount">0</span> document(s) found for your query
+                    </div>
+                </div>
+                <div class="document-list" id="documentList"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const form = document.getElementById('queryForm');
+        const loading = document.getElementById('loading');
+        const results = document.getElementById('results');
+        const error = document.getElementById('error');
+        const submitBtn = document.getElementById('submitBtn');
+        const urlInput = document.getElementById('urls');
+        const urlList = document.getElementById('urlList');
+
+        function parseUrls(input) {
+            const lines = input.split('\n').map(line => line.trim()).filter(line => line);
+            const urls = [];
+            lines.forEach(line => {
+                const commaUrls = line.split(',').map(u => u.trim()).filter(u => u);
+                urls.push(...commaUrls);
+            });
+            return urls.filter(url => {
+                try {
+                    new URL(url);
+                    return true;
+                } catch {
+                    return false;
+                }
+            });
+        }
+
+        function displayUrls(urls) {
+            urlList.innerHTML = '';
+            urls.forEach((url, index) => {
+                const tag = document.createElement('span');
+                tag.className = 'url-tag';
+                tag.innerHTML = `
+                    ${url}
+                    <span class="remove" onclick="removeUrl(${index})">×</span>
+                `;
+                urlList.appendChild(tag);
+            });
+        }
+
+        window.removeUrl = function(index) {
+            const urls = parseUrls(urlInput.value);
+            urls.splice(index, 1);
+            urlInput.value = urls.join('\n');
+            displayUrls(urls);
+        };
+
+        urlInput.addEventListener('input', () => {
+            const urls = parseUrls(urlInput.value);
+            displayUrls(urls);
+        });
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const urls = parseUrls(urlInput.value);
+            const question = document.getElementById('question').value.trim();
+
+            if (urls.length === 0) {
+                showError('Please provide at least one valid URL');
+                return;
+            }
+
+            if (!question) {
+                showError('Please provide a question');
+                return;
+            }
+
+            // Show loading, hide results and error
+            loading.classList.add('show');
+            results.classList.remove('show');
+            error.classList.remove('show');
+            submitBtn.disabled = true;
+
+            try {
+                const response = await fetch('/api/query', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ urls, question }),
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.error || 'Failed to process query');
+                }
+
+                // Display results
+                displayResults(data);
+            } catch (err) {
+                showError(err.message || 'An error occurred while processing your query');
+            } finally {
+                loading.classList.remove('show');
+                submitBtn.disabled = false;
+            }
+        });
+
+        function displayResults(data) {
+            const docList = document.getElementById('documentList');
+            const docCount = document.getElementById('docCount');
+            
+            docCount.textContent = data.documentCount || 0;
+            
+            docList.innerHTML = '';
+            
+            if (data.documents && data.documents.length > 0) {
+                data.documents.forEach((doc, index) => {
+                    const docItem = document.createElement('div');
+                    docItem.className = 'document-item';
+                    docItem.innerHTML = `
+                        <h3>Document ${index + 1}</h3>
+                        <div class="document-content">${escapeHtml(doc)}</div>
+                    `;
+                    docList.appendChild(docItem);
+                });
+            } else {
+                docList.innerHTML = '<p>No documents found for your query.</p>';
+            }
+
+            results.classList.add('show');
+        }
+
+        function showError(message) {
+            error.textContent = `❌ Error: ${message}`;
+            error.classList.add('show');
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Initialize URL display
+        urlInput.dispatchEvent(new Event('input'));
+    </script>
+</body>
+</html>
+

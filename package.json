@@ -1,0 +1,33 @@
+{
+  "name": "rag-langchain-agent",
+  "version": "1.0.0",
+  "description": "RAG LangGraph / LangChain TypeScript agent example",
+  "main": "dist/server.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "ts-node server.ts",
+    "dev": "ts-node server.ts",
+    "rag": "ts-node rag-chain.ts"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "@langchain/community": "^0.3.0",
+    "@langchain/core": "^0.3.0",
+    "@langchain/langgraph": "^1.0.7",
+    "@langchain/openai": "^0.3.0",
+    "@langchain/textsplitters": "^0.0.1",
+    "@xenova/transformers": "^2.17.2",
+    "cheerio": "^1.1.2",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.22.1",
+    "langchain": "^0.3.0",
+    "typescript": "^5.6.0"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.6",
+    "@types/node": "^22.0.0",
+    "ts-node": "^10.9.2"
+  }
+}
