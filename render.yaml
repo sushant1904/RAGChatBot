@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: rag-langchain-agent
+    env: node
+    buildCommand: npm ci --legacy-peer-deps && npm run build
+    startCommand: npm run start:prod
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: OPENAI_API_KEY
+        sync: false  # Set this in Render dashboard
+    healthCheckPath: /
+    plan: starter  # Change to 'standard' or 'pro' for production
+
