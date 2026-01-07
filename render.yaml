@@ -2,7 +2,7 @@ services:
   - type: web
     name: rag-langchain-agent
     env: node
-    buildCommand: npm ci --legacy-peer-deps && npm run build
+    buildCommand: npm install --legacy-peer-deps && npm run build
     startCommand: npm run start:prod
     envVars:
       - key: NODE_ENV
