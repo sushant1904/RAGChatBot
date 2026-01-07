@@ -9,7 +9,7 @@ const openai_1 = require("@langchain/openai");
 const cheerio_1 = require("@langchain/community/document_loaders/web/cheerio");
 const textsplitters_1 = require("@langchain/textsplitters");
 const memory_1 = require("langchain/vectorstores/memory");
-const huggingface_transformers_1 = require("@langchain/community/embeddings/huggingface_transformers");
+const hf_transformers_1 = require("@langchain/community/embeddings/hf_transformers");
 const output_parsers_1 = require("@langchain/core/output_parsers");
 const langgraph_1 = require("@langchain/langgraph");
 const createModel = async () => {
@@ -82,7 +82,7 @@ async function buildVectorStore(urls) {
         chunkOverlap: 20,
     });
     const splitDocs = await textSplitter.splitDocuments(docs.flat());
-    const embeddings = new huggingface_transformers_1.HuggingFaceTransformersEmbeddings({
+    const embeddings = new hf_transformers_1.HuggingFaceTransformersEmbeddings({
         model: "Xenova/all-MiniLM-L6-v2",
     });
     const vectorStore = new memory_1.MemoryVectorStore(embeddings);

@@ -5,7 +5,7 @@ import path from "path";
 import { retrieveDoc, formatDocuments, graph } from "./rag-chain";
 
 const app = express();
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 
 // Middleware
 app.use(cors());
