@@ -6,7 +6,7 @@ WORKDIR /app
 # Install dependencies (including devDependencies for TypeScript build)
 COPY package.json package-lock.json* ./
 COPY tsconfig.json ./
-RUN npm ci --silent
+RUN npm install --legacy-peer-deps --silent
 
 # Copy source and build
 COPY . .
