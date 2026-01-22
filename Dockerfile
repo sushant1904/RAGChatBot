@@ -1,12 +1,12 @@
 ## Multi-stage Dockerfile for production
 ## Builder stage: install deps and compile TypeScript
-FROM node:20-alpine AS builder
+FROM node:20-slim AS builder
 WORKDIR /app
 
 # Install dependencies (including devDependencies for TypeScript build)
 COPY package.json package-lock.json* ./
 COPY tsconfig.json ./
-RUN npm install --legacy-peer-deps --silent
+RUN npm ci --silent
 
 # Copy source and build
 COPY . .
@@ -15,7 +15,7 @@ RUN npm prune --omit=dev
 
 
 ## Runner stage: smaller runtime image
-FROM node:20-alpine AS runner
+FROM node:20-slim AS runner
 WORKDIR /app
 
 # Copy package files and only production node_modules from builder
