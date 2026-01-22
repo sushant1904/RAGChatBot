@@ -13,66 +13,116 @@
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: #0f1222;
             height: 100vh;
             margin: 0;
             padding: 0;
             overflow: hidden;
+            color: #e6e8f2;
         }
 
         .header {
-            background: rgba(255, 255, 255, 0.95);
-            padding: 15px 20px;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            background: transparent;
+            padding: 0;
+            box-shadow: none;
             z-index: 100;
             flex-shrink: 0;
         }
 
-        .header h1 {
-            color: #667eea;
-            font-size: 1.8em;
-            margin-bottom: 10px;
+        .app-layout {
+            display: grid;
+            grid-template-columns: 320px 1fr;
+            gap: 16px;
+            height: 100vh;
+            padding: 16px;
+            box-sizing: border-box;
+        }
+
+        .sidebar {
+            background: linear-gradient(180deg, #2b2f56 0%, #3b2e6e 100%);
+            border-radius: 20px;
+            padding: 18px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.35);
+            overflow: hidden;
+        }
+
+        .sidebar-card {
+            background: rgba(15, 18, 34, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 14px;
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .section-title {
+            font-size: 0.9em;
+            font-weight: 600;
+            color: #e6e8f2;
+        }
+
+        .chat-header {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 16px 20px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            background: linear-gradient(180deg, #2b2f56 0%, #3b2e6e 100%);
+            border-top-left-radius: 20px;
+            border-top-right-radius: 20px;
+        }
+
+        .chat-title {
+            font-size: 1.4em;
+            color: #f4f6ff;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
 
         .url-setup {
             display: flex;
+            flex-direction: column;
             gap: 10px;
-            align-items: flex-end;
-        }
-
-        .url-input-group {
-            flex: 1;
         }
 
         .url-input-group label {
             display: block;
-            margin-bottom: 5px;
-            color: #333;
-            font-size: 0.9em;
+            margin-bottom: 6px;
+            color: #cdd3ff;
+            font-size: 0.85em;
             font-weight: 600;
         }
 
         .url-input-group input {
             width: 100%;
             padding: 10px;
-            border: 2px solid #e0e0e0;
-            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 10px;
             font-size: 0.95em;
+            background: rgba(255, 255, 255, 0.08);
+            color: #f4f6ff;
         }
 
         .url-input-group input:focus {
             outline: none;
-            border-color: #667eea;
+            border-color: #9aa4ff;
+            box-shadow: 0 0 0 2px rgba(154, 164, 255, 0.25);
         }
 
         .btn {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
             border: none;
-            padding: 10px 20px;
-            border-radius: 8px;
+            padding: 10px 16px;
+            border-radius: 10px;
             cursor: pointer;
-            font-size: 0.95em;
+            font-size: 0.9em;
             font-weight: 600;
             transition: transform 0.2s, box-shadow 0.2s;
             white-space: nowrap;
@@ -89,28 +139,203 @@
             transform: none;
         }
 
-        .url-status {
-            margin-top: 10px;
-            font-size: 0.85em;
-            color: #666;
+        .url-status,
+        .upload-status {
+            font-size: 0.8em;
+            color: rgba(255, 255, 255, 0.7);
         }
 
-        .url-status.active {
-            color: #28a745;
+        .url-status.active,
+        .upload-status.active {
+            color: #9effb7;
             font-weight: 600;
         }
 
-        .chat-container {
-            flex: 1;
+        .upload-setup {
             display: flex;
             flex-direction: column;
-            max-width: 1200px;
+            gap: 10px;
+        }
+
+        .upload-input-group label {
+            display: block;
+            margin-bottom: 6px;
+            color: #cdd3ff;
+            font-size: 0.85em;
+            font-weight: 600;
+        }
+
+        .upload-input-group input {
             width: 100%;
-            margin: 0 auto;
+            padding: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 10px;
+            font-size: 0.9em;
+            background: rgba(255, 255, 255, 0.08);
+            color: #f4f6ff;
+        }
+
+        .upload-list {
+            font-size: 0.8em;
+            color: rgba(255, 255, 255, 0.7);
+        }
+
+        .upload-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+
+        .btn.secondary {
+            background: rgba(255, 255, 255, 0.12);
+            color: #f4f6ff;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            box-shadow: none;
+        }
+
+        .modal .btn.secondary {
+            color: #333;
+            background: #f0f0f0;
+            border-color: #e0e0e0;
+        }
+
+        .btn.secondary:hover {
+            box-shadow: none;
+            transform: translateY(-1px);
+        }
+
+        .rag-settings {
+            display: flex;
+            align-items: flex-start;
+        }
+
+        .btn.small {
+            padding: 8px 12px;
+            font-size: 0.85em;
+        }
+
+        .rag-settings-grid {
+            margin-top: 12px;
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 12px;
+        }
+
+        .rag-field label {
+            display: block;
+            font-size: 0.85em;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 6px;
+        }
+
+        .rag-field input,
+        .rag-field select {
+            width: 100%;
+            padding: 8px 10px;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 0.9em;
+        }
+
+        .rag-field input:focus,
+        .rag-field select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .rag-settings-note {
+            margin-top: 8px;
+            font-size: 0.8em;
+            color: #666;
+        }
+
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.4);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 200;
+        }
+
+        .modal-overlay.show {
+            display: flex;
+        }
+
+        .modal {
             background: white;
+            border-radius: 14px;
+            width: min(720px, 92vw);
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+            padding: 16px 18px;
+        }
+
+        .modal-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 10px;
+        }
+
+        .modal-header h3 {
+            font-size: 1.1em;
+            color: #333;
+        }
+
+        .modal-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-top: 14px;
+        }
+
+        .rag-quick-guides {
+            margin-top: 12px;
+            background: #f7f8ff;
+            border: 1px solid #e0e4ff;
+            border-radius: 10px;
+            padding: 10px 12px;
+            font-size: 0.85em;
+            color: #4a4f6d;
+        }
+
+        .rag-quick-guides h4 {
+            margin-bottom: 8px;
+            color: #3b3f5c;
+            font-size: 0.95em;
+        }
+
+        .rag-quick-guides ul {
+            list-style: none;
+            padding-left: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .rag-quick-guides li {
+            background: white;
+            border: 1px solid #eceeff;
+            border-radius: 8px;
+            padding: 8px 10px;
+        }
+
+        .rag-quick-guides strong {
+            display: block;
+            margin-bottom: 4px;
+            color: #333;
+        }
+
+        .chat-container {
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+            background: #f8f9fc;
             border-radius: 20px;
             box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-            overflow: visible; /* Allow content to be visible - don't clip text */
+            overflow: visible;
             min-height: 0;
             height: 100%;
         }
@@ -118,9 +343,9 @@
         .chat-messages {
             flex: 1;
             overflow-y: auto;
-            overflow-x: auto; /* Allow horizontal scroll if needed */
+            overflow-x: auto;
             padding: 20px;
-            background: #f8f9fa;
+            background: #f8f9fc;
             scroll-behavior: smooth;
             max-height: 100%;
             width: 100%;
@@ -325,7 +550,7 @@
         .empty-state {
             text-align: center;
             padding: 60px 20px;
-            color: #999;
+            color: #6e748f;
         }
 
         .empty-state h3 {
@@ -391,34 +616,59 @@
 
         /* Container wrapper for proper flex layout */
         .main-container {
-            display: flex;
-            flex-direction: column;
             height: 100vh;
             overflow: hidden;
-            padding: 10px;
+            padding: 0;
             box-sizing: border-box;
         }
     </style>
 </head>
 <body>
     <div class="main-container">
-        <div class="header">
-        <h1>🤖 RAG Chatbot</h1>
-        <div class="url-setup">
-            <div class="url-input-group">
-                <label for="urls">Document URLs (comma-separated or one per line)</label>
-                <input 
-                    type="text" 
-                    id="urls" 
-                    placeholder="https://example.com/article1, https://example.com/article2"
-                >
-            </div>
-            <button class="btn" id="setupBtn">Setup URLs</button>
-        </div>
-        <div class="url-status" id="urlStatus">No URLs configured</div>
+    <div class="app-layout">
+        <aside class="sidebar">
+            <div class="sidebar-card">
+                <div class="section-title">Document URLs</div>
+                <div class="url-setup">
+                    <div class="url-input-group">
+                        <label for="urls">Add URLs</label>
+                        <input 
+                            type="text" 
+                            id="urls" 
+                            placeholder="https://example.com/article1, https://example.com/article2"
+                        >
+                    </div>
+                    <button class="btn" id="setupBtn">Setup URLs</button>
                 </div>
+                <div class="url-status" id="urlStatus">No URLs configured</div>
+            </div>
+            <div class="sidebar-card">
+                <div class="section-title">Upload Documents</div>
+                <div class="upload-setup">
+                    <div class="upload-input-group">
+                        <label for="filesInput">Select files</label>
+                        <input id="filesInput" type="file" multiple>
+                    </div>
+                    <div class="upload-actions">
+                        <button class="btn" id="uploadBtn">Upload</button>
+                        <button class="btn secondary" id="clearUploadsBtn">Clear</button>
+                    </div>
+                </div>
+                <div class="upload-status" id="uploadStatus">No files uploaded</div>
+                <div class="upload-list" id="uploadList"></div>
+            </div>
+            <div class="sidebar-card">
+                <div class="section-title">Settings</div>
+                <div class="rag-settings">
+                    <button class="btn small" id="ragSettingsBtn">Advanced RAG Settings</button>
+                </div>
+            </div>
+        </aside>
 
     <div class="chat-container">
+        <div class="chat-header">
+            <div class="chat-title">🤖 RAG Chatbot</div>
+        </div>
         <div class="chat-messages" id="chatMessages">
             <div class="empty-state">
                 <h3>👋 Welcome!</h3>
@@ -438,18 +688,115 @@
             </div>
         </div>
     </div>
+    </div>
+    <div class="modal-overlay" id="ragModal">
+        <div class="modal" role="dialog" aria-modal="true" aria-labelledby="ragModalTitle">
+            <div class="modal-header">
+                <h3 id="ragModalTitle">Advanced RAG Settings</h3>
+                <button class="btn secondary small" id="ragCancelBtn">Close</button>
+            </div>
+            <div class="rag-settings-grid">
+                <div class="rag-field">
+                    <label for="chunkSize">Chunk size (chars)</label>
+                    <input id="chunkSize" type="number" min="100" max="2000" placeholder="auto (700)">
+                </div>
+                <div class="rag-field">
+                    <label for="chunkOverlap">Chunk overlap (chars)</label>
+                    <input id="chunkOverlap" type="number" min="0" max="1000" placeholder="auto (20%)">
+                </div>
+                <div class="rag-field">
+                    <label for="retrieverStrategy">Retriever strategy</label>
+                    <select id="retrieverStrategy">
+                        <option value="default" selected>Default</option>
+                        <option value="mmr">MMR</option>
+                        <option value="similarity">Similarity</option>
+                    </select>
+                </div>
+                <div class="rag-field">
+                    <label for="retrieverK">Retriever k</label>
+                    <input id="retrieverK" type="number" min="1" max="50" placeholder="12">
+                </div>
+                <div class="rag-field">
+                    <label for="retrieverFetchK">Retriever fetchK</label>
+                    <input id="retrieverFetchK" type="number" min="1" max="100" placeholder="40">
+                </div>
+                <div class="rag-field">
+                    <label for="retrieverLambda">Retriever lambda (0-1)</label>
+                    <input id="retrieverLambda" type="number" min="0" max="1" step="0.1" placeholder="0.6">
+                </div>
+            </div>
+            <div class="rag-settings-note">Leave fields empty to use auto/default values.</div>
+            <div class="rag-quick-guides">
+                <h4>Quick guides</h4>
+                <ul>
+                    <li>
+                        <strong>General QA (default)</strong>
+                        chunk 700, overlap 20%, strategy similarity, k 12
+                    </li>
+                    <li>
+                        <strong>Summarization / overview</strong>
+                        chunk 900, overlap 20%, strategy MMR, k 12, fetchK 40, lambda 0.5
+                    </li>
+                    <li>
+                        <strong>Precise fact lookup</strong>
+                        chunk 500, overlap 10%, strategy similarity, k 6
+                    </li>
+                </ul>
+            </div>
+            <div class="modal-actions">
+                <button class="btn secondary" id="ragResetBtn">Reset</button>
+                <button class="btn" id="ragSaveBtn">Save</button>
+            </div>
+        </div>
+    </div>
+    </div>
 
     <script>
         let configuredUrls = [];
         let conversationHistory = [];
+        let uploadedFiles = [];
 
         const urlInput = document.getElementById('urls');
         const setupBtn = document.getElementById('setupBtn');
         const urlStatus = document.getElementById('urlStatus');
+        const ragSettingsBtn = document.getElementById('ragSettingsBtn');
+        const ragModal = document.getElementById('ragModal');
+        const ragSaveBtn = document.getElementById('ragSaveBtn');
+        const ragCancelBtn = document.getElementById('ragCancelBtn');
+        const ragResetBtn = document.getElementById('ragResetBtn');
+        const filesInput = document.getElementById('filesInput');
+        const uploadBtn = document.getElementById('uploadBtn');
+        const clearUploadsBtn = document.getElementById('clearUploadsBtn');
+        const uploadStatus = document.getElementById('uploadStatus');
+        const uploadList = document.getElementById('uploadList');
         const chatMessages = document.getElementById('chatMessages');
         const messageInput = document.getElementById('messageInput');
         const sendBtn = document.getElementById('sendBtn');
         const errorMessage = document.getElementById('errorMessage');
+        const chunkSizeInput = document.getElementById('chunkSize');
+        const chunkOverlapInput = document.getElementById('chunkOverlap');
+        const retrieverStrategyInput = document.getElementById('retrieverStrategy');
+        const retrieverKInput = document.getElementById('retrieverK');
+        const retrieverFetchKInput = document.getElementById('retrieverFetchK');
+        const retrieverLambdaInput = document.getElementById('retrieverLambda');
+
+        function openRagModal() {
+            ragModal.classList.add('show');
+        }
+
+        function closeRagModal() {
+            ragModal.classList.remove('show');
+        }
+
+        function resetRagSettings() {
+            chunkSizeInput.value = '';
+            chunkOverlapInput.value = '';
+            retrieverStrategyInput.value = 'default';
+            retrieverKInput.value = '';
+            retrieverFetchKInput.value = '';
+            retrieverLambdaInput.value = '';
+        }
+
 
         function parseUrls(input) {
             const lines = input.split('\n').map(line => line.trim()).filter(line => line);
@@ -466,6 +813,71 @@
                     return false;
                 }
             });
+        }
+
+        function updateUploadStatus() {
+            if (uploadedFiles.length === 0) {
+                uploadStatus.textContent = 'No files uploaded';
+                uploadStatus.classList.remove('active');
+                uploadList.textContent = '';
+                return;
+            }
+            uploadStatus.textContent = `${uploadedFiles.length} file(s) uploaded`;
+            uploadStatus.classList.add('active');
+            uploadList.textContent = uploadedFiles.map(file => file.name).join(', ');
+        }
+
+        async function uploadFiles() {
+            const files = Array.from(filesInput.files || []);
+            if (files.length === 0) {
+                showError('Please select at least one file to upload');
+                return;
+            }
+
+            const formData = new FormData();
+            files.forEach(file => formData.append('files', file));
+
+            uploadBtn.disabled = true;
+            try {
+                const response = await fetch('/api/upload', {
+                    method: 'POST',
+                    body: formData,
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.message || errorData.error || 'Upload failed');
+                }
+
+                const data = await response.json();
+                if (data.success && Array.isArray(data.files)) {
+                    uploadedFiles = uploadedFiles.concat(data.files);
+                    filesInput.value = '';
+                    updateUploadStatus();
+                    clearError();
+                    if (uploadedFiles.length > 0 || configuredUrls.length > 0) {
+                        sendBtn.disabled = false;
+                    }
+                    loadSampleQuestions();
+                }
+            } catch (err) {
+                showError(err.message || 'Failed to upload files');
+            } finally {
+                uploadBtn.disabled = false;
+            }
+        }
+
+        async function clearUploads() {
+            try {
+                await fetch('/api/uploads/clear', { method: 'DELETE' });
+            } catch (err) {
+                console.error('Failed to clear uploads:', err);
+            }
+            uploadedFiles = [];
+            updateUploadStatus();
+            if (configuredUrls.length === 0) {
+                sendBtn.disabled = true;
+            }
         }
 
         setupBtn.addEventListener('click', () => {
@@ -495,6 +907,21 @@
             
             // Load sample questions
             loadSampleQuestions();
+        });
+
+        uploadBtn.addEventListener('click', uploadFiles);
+        clearUploadsBtn.addEventListener('click', clearUploads);
+        ragSettingsBtn.addEventListener('click', openRagModal);
+        ragCancelBtn.addEventListener('click', closeRagModal);
+        ragSaveBtn.addEventListener('click', () => {
+            closeRagModal();
+            loadSampleQuestions();
+        });
+        ragResetBtn.addEventListener('click', resetRagSettings);
+        ragModal.addEventListener('click', (event) => {
+            if (event.target === ragModal) {
+                closeRagModal();
+            }
         });
 
         function showError(message) {
@@ -557,7 +984,7 @@
         }
 
         async function loadSampleQuestions() {
-            if (configuredUrls.length === 0) return;
+            if (configuredUrls.length === 0 && uploadedFiles.length === 0) return;
             
             try {
                 const response = await fetch('/api/sample-questions', {
@@ -565,7 +992,11 @@
                     headers: {
                         'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify({ urls: configuredUrls }),
+                    body: JSON.stringify({
+                        urls: configuredUrls,
+                        uploadIds: uploadedFiles.map(file => file.id),
+                        ragConfig: getRagConfig(),
+                    }),
                 });
 
                 if (response.ok) {
@@ -599,6 +1030,29 @@
             
             chatMessages.appendChild(sampleDiv);
             scrollToBottom();
+        }
+
+        function getNumberValue(input) {
+            if (!input) return undefined;
+            const value = input.value.trim();
+            if (value === '') return undefined;
+            const parsed = Number(value);
+            return Number.isFinite(parsed) ? parsed : undefined;
+        }
+
+        function getRagConfig() {
+            const strategy = retrieverStrategyInput.value;
+            const config = {
+                chunkSize: getNumberValue(chunkSizeInput),
+                chunkOverlap: getNumberValue(chunkOverlapInput),
+                retrieverStrategy: strategy === 'default' ? undefined : strategy,
+                retrieverK: getNumberValue(retrieverKInput),
+                retrieverFetchK: getNumberValue(retrieverFetchKInput),
+                retrieverLambda: getNumberValue(retrieverLambdaInput),
+            };
+
+            const hasValues = Object.values(config).some(value => value !== undefined);
+            return hasValues ? config : undefined;
         }
 
         window.askQuestion = function(question) {
@@ -640,7 +1094,7 @@
 
         async function sendMessage() {
             const message = messageInput.value.trim();
-            if (!message || configuredUrls.length === 0) {
+            if (!message || (configuredUrls.length === 0 && uploadedFiles.length === 0)) {
                 return;
             }
 
@@ -664,8 +1118,10 @@
                     },
                     body: JSON.stringify({
                         urls: configuredUrls,
+                        uploadIds: uploadedFiles.map(file => file.id),
                         message: message,
-                        conversationHistory: conversationHistory
+                        conversationHistory: conversationHistory,
+                        ragConfig: getRagConfig()
                     }),
                 });
 

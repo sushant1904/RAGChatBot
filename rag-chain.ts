@@ -1,6 +1,6 @@
 import { Document, DocumentInterface } from "@langchain/core/documents";
 import { ChatPromptTemplate } from "@langchain/core/prompts";
-import { ChatOpenAI } from "@langchain/openai";
+import { ChatOllama } from "@langchain/ollama";
 import { CheerioWebBaseLoader } from "@langchain/community/document_loaders/web/cheerio";
 import { RecursiveCharacterTextSplitter } from "@langchain/textsplitters";
 import { MemoryVectorStore } from "langchain/vectorstores/memory";
@@ -11,18 +11,28 @@ import { StateGraph, START, END, Annotation } from "@langchain/langgraph";
 export interface GraphInterface {
   question: string;
   urls?: string[];
+  uploadIds?: string[];
   generatedAnswer?: string;
   documents?: DocumentInterface[];
-  model?: ChatOpenAI;
+  model?: ChatOllama;
   conversationHistory?: Array<{ role: string; content: string }>;
   vectorStore?: MemoryVectorStore;
+  ragConfig?: RagConfig;
+}
+
+interface RagConfig {
+  chunkSize?: number;
+  chunkOverlap?: number;
+  retrieverStrategy?: "mmr" | "similarity";
+  retrieverK?: number;
+  retrieverFetchK?: number;
+  retrieverLambda?: number;
 }
 
 const createModel = async () => {
-  return new ChatOpenAI({
-    model: "gpt-4.1",
+  return new ChatOllama({
+    model: "qwen2.5:3b",
     temperature: 0,
-    apiKey: process.env.OPENAI_API_KEY,
   });
 };
 
@@ -183,7 +193,7 @@ Answer with a single word: 'yes' or 'no'. Do not return any other text.`
   return { ...state, documents: relevantDocs, model };
 };
 
-export async function buildVectorStore(urls: string[]) {
+export async function buildVectorStore(urls: string[], ragConfig?: RagConfig, additionalDocs: Document[] = []) {
   const docs = await Promise.all(
     urls.map(async (url) => {
       const loader = new CheerioWebBaseLoader(url);
@@ -191,15 +201,38 @@ export async function buildVectorStore(urls: string[]) {
     })
   );
 
+  const flatDocs = docs.flat().concat(additionalDocs);
+  const totalChars = flatDocs.reduce((sum, doc) => sum + doc.pageContent.length, 0);
+  const avgDocLength = flatDocs.length ? totalChars / flatDocs.length : 0;
+
+  const explicitChunkSize = ragConfig?.chunkSize ?? Number(process.env.CHUNK_SIZE);
+  const explicitOverlap = ragConfig?.chunkOverlap ?? Number(process.env.CHUNK_OVERLAP);
+  const useExplicit = Number.isFinite(explicitChunkSize) && (explicitChunkSize as number) > 0;
+
+  // Auto-tune chunking based on document size, with env overrides.
+  let chunkSize = useExplicit ? (explicitChunkSize as number) : 700;
+  if (!useExplicit) {
+    if (avgDocLength > 6000) {
+      chunkSize = 900;
+    } else if (avgDocLength < 1500) {
+      chunkSize = 400;
+    }
+  }
+  const chunkOverlap = Number.isFinite(explicitOverlap) && (explicitOverlap as number) >= 0
+    ? (explicitOverlap as number)
+    : Math.round(chunkSize * 0.2);
+
   const textSplitter = new RecursiveCharacterTextSplitter({
-    chunkSize: 500,  // Increased from 250 to capture more context
-    chunkOverlap: 50,  // Increased overlap to prevent losing context at boundaries
+    chunkSize,
+    chunkOverlap,
+    separators: ["\n\n", "\n", ". ", " ", ""],
+    keepSeparator: true,
   });
 
-  const splitDocs = await textSplitter.splitDocuments(docs.flat());
+  const splitDocs = await textSplitter.splitDocuments(flatDocs);
 
   const embeddings = new HuggingFaceTransformersEmbeddings({
-    model: "Xenova/all-MiniLM-L6-v2",
+    model: "Xenova/bge-small-en-v1.5",
   });
 
   const vectorStore = new MemoryVectorStore(embeddings);
@@ -210,14 +243,31 @@ export async function buildVectorStore(urls: string[]) {
 
 export async function retrieveDoc(
   urls: string[],
-  question: string
+  question: string,
+  ragConfig?: RagConfig,
+  additionalDocs: Document[] = []
 ): Promise<{ documents: Document[] }> {
-  const vectorStoreInstance = await buildVectorStore(urls);
-  const retrievedDocs = await vectorStoreInstance
-    .asRetriever({ k: 10 })  // Retrieve top 10 documents
-    .invoke(question);
+  const vectorStoreInstance = await buildVectorStore(urls, ragConfig, additionalDocs);
+  const retriever = getRetriever(vectorStoreInstance, ragConfig);
+  const retrievedDocs = await retriever.invoke(question);
 
   return { documents: retrievedDocs };
+}
+
+function getRetriever(vectorStoreInstance: MemoryVectorStore, ragConfig?: RagConfig) {
+  const k = ragConfig?.retrieverK ?? Number(process.env.RETRIEVER_K ?? 12);
+  const fetchK = ragConfig?.retrieverFetchK ?? Number(process.env.RETRIEVER_FETCH_K ?? 40);
+  const lambda = ragConfig?.retrieverLambda ?? Number(process.env.RETRIEVER_LAMBDA ?? 0.6);
+  const searchType = (ragConfig?.retrieverStrategy ?? process.env.RETRIEVER_STRATEGY ?? "similarity").toLowerCase();
+
+  const retrieverConfig = {
+    k,
+    ...(searchType === "mmr"
+      ? { searchType: "mmr", searchKwargs: { fetchK, lambda } }
+      : {}),
+  } as any;
+
+  return vectorStoreInstance.asRetriever(retrieverConfig);
 }
 
 // Node function for LangGraph that takes state
@@ -232,15 +282,14 @@ const retrieveDocNode = async (state: GraphInterface) => {
   if (vectorStore) {
     vectorStoreInstance = vectorStore;
   } else {
-    const result = await retrieveDoc(urls, state.question);
+    const result = await retrieveDoc(urls, state.question, state.ragConfig);
     console.log(`[retrieveDocNode] Retrieved ${result.documents.length} document(s) from vector store`);
     return { documents: result.documents };
   }
   
   // Retrieve more documents to increase chances of finding relevant information
-  const retrievedDocs = await vectorStoreInstance
-    .asRetriever({ k: 10 })  // Retrieve top 10 documents instead of default (usually 4)
-    .invoke(state.question);
+  const retriever = getRetriever(vectorStoreInstance, state.ragConfig);
+  const retrievedDocs = await retriever.invoke(state.question);
   
   console.log(`[retrieveDocNode] Retrieved ${retrievedDocs.length} document(s) from vector store`);
   return { documents: retrievedDocs };
@@ -271,8 +320,8 @@ const GraphState = Annotation.Root({
     reducer: (x: Document[], y: Document[]) => y ?? x,
     default: () => [] as Document[],
   }),
-  model: Annotation<ChatOpenAI>({
-    reducer: (x: ChatOpenAI, y: ChatOpenAI) => y ?? x,
+  model: Annotation<ChatOllama>({
+    reducer: (x: ChatOllama, y: ChatOllama) => y ?? x,
     default: () => undefined as any,
   }),
   conversationHistory: Annotation<Array<{ role: string; content: string }>>({
@@ -282,6 +331,14 @@ const GraphState = Annotation.Root({
   vectorStore: Annotation<MemoryVectorStore>({
     reducer: (x: MemoryVectorStore, y: MemoryVectorStore) => y ?? x,
     default: () => undefined as any,
+  }),
+  ragConfig: Annotation<RagConfig | undefined>({
+    reducer: (x: RagConfig | undefined, y: RagConfig | undefined) => y ?? x,
+    default: () => undefined,
+  }),
+  uploadIds: Annotation<string[] | undefined>({
+    reducer: (x: string[] | undefined, y: string[] | undefined) => y ?? x,
+    default: () => undefined,
   }),
 });
 

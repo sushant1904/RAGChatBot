@@ -4,16 +4,25 @@ import cors from "cors";
 import path from "path";
 import { retrieveDoc, formatDocuments, graph, buildVectorStore } from "./rag-chain";
 import { MemoryVectorStore } from "langchain/vectorstores/memory";
-import { ChatOpenAI } from "@langchain/openai";
+import { ChatOllama } from "@langchain/ollama";
 import { ChatPromptTemplate } from "@langchain/core/prompts";
 import { StringOutputParser } from "@langchain/core/output_parsers";
 import * as os from "os";
+import multer from "multer";
+import pdfParse from "pdf-parse";
+import { Document } from "@langchain/core/documents";
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
 // Cache vector stores by URL set (as a string key)
 const vectorStoreCache = new Map<string, MemoryVectorStore>();
+const uploadStore = new Map<string, { name: string; type: string; content: string; createdAt: number }>();
+
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024, files: 10 },
+});
 
 // Middleware
 app.use(cors());
@@ -60,13 +69,129 @@ app.get("/api/cpu-usage", (req, res) => {
   });
 });
 
+type UploadedFile = {
+  buffer: Buffer;
+  mimetype: string;
+  originalname: string;
+  size: number;
+};
+
+// Upload documents (text or PDF)
+app.post("/api/upload", upload.array("files", 10), async (req, res) => {
+  try {
+    const files = ((req as any).files as UploadedFile[]) ?? [];
+    if (files.length === 0) {
+      return res.status(400).json({ error: "Please upload at least one file" });
+    }
+
+    const results = [];
+    for (const file of files) {
+      let content = "";
+      if (file.mimetype === "application/pdf") {
+        const parsed = await pdfParse(file.buffer);
+        content = parsed.text ?? "";
+      } else if (
+        file.mimetype.startsWith("text/") ||
+        file.mimetype === "application/json"
+      ) {
+        content = file.buffer.toString("utf8");
+      } else {
+        return res.status(400).json({ error: `Unsupported file type: ${file.mimetype}` });
+      }
+
+      const id = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      uploadStore.set(id, {
+        name: file.originalname,
+        type: file.mimetype,
+        content,
+        createdAt: Date.now(),
+      });
+
+      results.push({ id, name: file.originalname, type: file.mimetype, size: file.size });
+    }
+
+    res.json({ success: true, files: results });
+  } catch (error: any) {
+    console.error("[API] Error uploading files:", error);
+    res.status(500).json({ error: "Failed to upload files", message: error.message });
+  }
+});
+
+app.delete("/api/uploads/clear", (req, res) => {
+  uploadStore.clear();
+  res.json({ success: true });
+});
+
+interface RagConfig {
+  chunkSize?: number;
+  chunkOverlap?: number;
+  retrieverStrategy?: "mmr" | "similarity";
+  retrieverK?: number;
+  retrieverFetchK?: number;
+  retrieverLambda?: number;
+}
+
+function normalizeRagConfig(input: any): RagConfig | undefined {
+  if (!input || typeof input !== "object") {
+    return undefined;
+  }
+
+  const toNumber = (value: any) => {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : undefined;
+  };
+
+  const normalized: RagConfig = {
+    chunkSize: toNumber(input.chunkSize),
+    chunkOverlap: toNumber(input.chunkOverlap),
+    retrieverStrategy: typeof input.retrieverStrategy === "string"
+      ? (input.retrieverStrategy as RagConfig["retrieverStrategy"])
+      : undefined,
+    retrieverK: toNumber(input.retrieverK),
+    retrieverFetchK: toNumber(input.retrieverFetchK),
+    retrieverLambda: toNumber(input.retrieverLambda),
+  };
+
+  if (Object.values(normalized).every(value => value === undefined)) {
+    return undefined;
+  }
+
+  return normalized;
+}
+
+function buildVectorStoreCacheKey(urls: string[], ragConfig?: RagConfig) {
+  const chunkKey = ragConfig?.chunkSize ?? "auto";
+  const overlapKey = ragConfig?.chunkOverlap ?? "auto";
+  return `${urls.sort().join("|")}::chunk=${chunkKey}::overlap=${overlapKey}`;
+}
+
+function buildVectorStoreCacheKeyWithUploads(urls: string[], uploadIds: string[], ragConfig?: RagConfig) {
+  const baseKey = buildVectorStoreCacheKey(urls, ragConfig);
+  const uploadsKey = uploadIds.length > 0 ? uploadIds.sort().join("|") : "none";
+  return `${baseKey}::uploads=${uploadsKey}`;
+}
+
+function getUploadedDocuments(uploadIds: string[]): Document[] {
+  const docs: Document[] = [];
+  for (const id of uploadIds) {
+    const entry = uploadStore.get(id);
+    if (!entry) continue;
+    docs.push(new Document({
+      pageContent: entry.content,
+      metadata: { source: "upload", name: entry.name, type: entry.type, id },
+    }));
+  }
+  return docs;
+}
+
 // Endpoint to generate sample questions from documents
 app.post("/api/sample-questions", async (req, res) => {
   try {
-    const { urls } = req.body;
+    const { urls = [], uploadIds = [], ragConfig } = req.body;
+    const normalizedRagConfig = normalizeRagConfig(ragConfig);
 
-    if (!urls || !Array.isArray(urls) || urls.length === 0) {
-      return res.status(400).json({ error: "Please provide at least one URL" });
+    if ((!Array.isArray(urls) || urls.length === 0) && (!Array.isArray(uploadIds) || uploadIds.length === 0)) {
+      return res.status(400).json({ error: "Please provide at least one URL or uploaded document" });
     }
 
     if (urls.length > 3) {
@@ -76,12 +201,13 @@ app.post("/api/sample-questions", async (req, res) => {
     }
 
     // Get or create vector store
-    const vectorStore = await getOrCreateVectorStore(urls);
+    const vectorStore = await getOrCreateVectorStore(urls, uploadIds, normalizedRagConfig);
     
-    // Retrieve some sample documents to generate questions from
-    const sampleDocs = await vectorStore
-      .asRetriever({ k: 5 })
-      .invoke("main topics and key information");
+    // Retrieve representative chunks using embeddings (topic-oriented query)
+    const sampleDocs = await vectorStore.similaritySearch(
+      "main topics, key entities, important facts, and summary",
+      10
+    );
 
     if (sampleDocs.length === 0) {
       return res.json({ 
@@ -95,33 +221,61 @@ app.post("/api/sample-questions", async (req, res) => {
     }
 
     // Use LLM to generate sample questions based on document content
-    const model = new ChatOpenAI({
-      model: "gpt-4.1",
-      temperature: 0.7,
-      apiKey: process.env.OPENAI_API_KEY,
+    const model = new ChatOllama({
+      model: "qwen2.5:3b",
+      temperature: 0.3,
     });
 
-    const context = sampleDocs.slice(0, 3).map(doc => doc.pageContent).join("\n\n");
+    const context = sampleDocs
+      .slice(0, 8)
+      .map((doc, index) => {
+        const source = doc.metadata?.name || doc.metadata?.source || `chunk-${index + 1}`;
+        return `Source: ${source}\n${doc.pageContent}`;
+      })
+      .join("\n\n");
     
     const prompt = ChatPromptTemplate.fromTemplate(
-      `Based on the following document excerpts, generate 5 diverse and interesting questions that someone might ask about this content. 
-      Make the questions specific and relevant to the content. Return only the questions, one per line, without numbering or bullets.
+      `You are generating suggested questions for a RAG system. 
+Return 6 specific, diverse questions that are directly grounded in the provided excerpts.
+Avoid generic questions like "What is the main topic?" unless the excerpts are too short.
+Prefer questions that mention concrete entities, places, numbers, or events from the excerpts.
+Return a JSON array of strings only.
 
 Document excerpts:
 {context}
 
-Generate 5 sample questions:`
+Questions JSON:`
     );
 
     const chain = prompt.pipe(model).pipe(new StringOutputParser());
     const questionsText = await chain.invoke({ context });
     
-    // Parse questions (split by newlines and clean up)
-    const questions = questionsText
-      .split('\n')
-      .map(q => q.trim())
-      .filter(q => q.length > 0 && !q.match(/^\d+[\.\)]/)) // Remove numbering
-      .slice(0, 5);
+    // Parse questions (JSON array preferred, fallback to line split)
+    let questions: string[] = [];
+    try {
+      const cleaned = questionsText
+        .replace(/```json/gi, "")
+        .replace(/```/g, "")
+        .trim();
+      const parsed = JSON.parse(cleaned);
+      if (Array.isArray(parsed)) {
+        questions = parsed.map(q => String(q).trim()).filter(q => q.length > 0);
+      }
+    } catch {
+      const cleaned = questionsText
+        .replace(/```json/gi, "")
+        .replace(/```/g, "")
+        .trim();
+      questions = cleaned
+        .split('\n')
+        .map(q => q.trim())
+        .filter(q => q.length > 0 && !q.match(/^\d+[\.\)]/));
+    }
+
+    questions = questions
+      .map(q => q.replace(/^["'\[\]\s]+|["'\[\]\s]+$/g, "").trim())
+      .filter(q => q.length >= 8 && !q.match(/^(json|\[|\])$/i))
+      .slice(0, 3);
 
     res.json({ 
       success: true, 
@@ -146,8 +300,12 @@ Generate 5 sample questions:`
 });
 
 // Helper function to get or create vector store
-async function getOrCreateVectorStore(urls: string[]): Promise<MemoryVectorStore> {
-  const cacheKey = urls.sort().join("|");
+async function getOrCreateVectorStore(
+  urls: string[],
+  uploadIds: string[],
+  ragConfig?: RagConfig
+): Promise<MemoryVectorStore> {
+  const cacheKey = buildVectorStoreCacheKeyWithUploads(urls, uploadIds, ragConfig);
   
   if (vectorStoreCache.has(cacheKey)) {
     console.log(`[Cache] Using cached vector store for ${urls.length} URL(s)`);
@@ -159,7 +317,8 @@ async function getOrCreateVectorStore(urls: string[]): Promise<MemoryVectorStore
   const startTime = Date.now();
   const memBefore = process.memoryUsage();
   
-  const vectorStore = await buildVectorStore(urls);
+  const uploadedDocs = getUploadedDocuments(uploadIds);
+  const vectorStore = await buildVectorStore(urls, ragConfig, uploadedDocs);
   
   const duration = Date.now() - startTime;
   const memAfter = process.memoryUsage();
@@ -201,10 +360,11 @@ app.post("/api/chat", async (req, res) => {
   };
 
   try {
-    const { urls, message, conversationHistory = [] } = req.body;
+    const { urls = [], uploadIds = [], message, conversationHistory = [], ragConfig } = req.body;
+    const normalizedRagConfig = normalizeRagConfig(ragConfig);
 
-    if (!urls || !Array.isArray(urls) || urls.length === 0) {
-      sendResponse(400, { error: "Please provide at least one URL" });
+    if ((!Array.isArray(urls) || urls.length === 0) && (!Array.isArray(uploadIds) || uploadIds.length === 0)) {
+      sendResponse(400, { error: "Please provide at least one URL or uploaded document" });
       return;
     }
 
@@ -278,7 +438,7 @@ app.post("/api/chat", async (req, res) => {
     const startTime = Date.now();
     
     // Check if vector store needs to be built (first time)
-    const cacheKey = urls.sort().join("|");
+    const cacheKey = buildVectorStoreCacheKeyWithUploads(urls, uploadIds, normalizedRagConfig);
     const isFirstLoad = !vectorStoreCache.has(cacheKey);
     const timeoutMs = isFirstLoad ? FIRST_LOAD_TIMEOUT_MS : DEFAULT_TIMEOUT_MS;
     
@@ -291,7 +451,7 @@ app.post("/api/chat", async (req, res) => {
     // Wrap in timeout to catch if vector store building takes too long
     const vectorStoreTimeoutPromise = createTimeoutPromise(timeoutMs);
     const vectorStore = await Promise.race([
-      getOrCreateVectorStore(urls),
+      getOrCreateVectorStore(urls, uploadIds, normalizedRagConfig),
       vectorStoreTimeoutPromise,
     ]) as MemoryVectorStore;
     
@@ -312,7 +472,9 @@ app.post("/api/chat", async (req, res) => {
       conversationHistory: conversationHistory.map((msg: any) => ({
         role: msg.role,
         content: msg.content
-      }))
+      })),
+      ragConfig: normalizedRagConfig,
+      uploadIds,
     });
     
     // Race between graph execution and timeout
@@ -373,15 +535,16 @@ app.post("/api/chat", async (req, res) => {
 // Keep old endpoint for backward compatibility
 app.post("/api/query", async (req, res) => {
   try {
-    const { urls, question } = req.body;
-    if (!urls || !Array.isArray(urls) || urls.length === 0) {
-      return res.status(400).json({ error: "Please provide at least one URL" });
+    const { urls = [], uploadIds = [], question, ragConfig } = req.body;
+    const normalizedRagConfig = normalizeRagConfig(ragConfig);
+    if ((!Array.isArray(urls) || urls.length === 0) && (!Array.isArray(uploadIds) || uploadIds.length === 0)) {
+      return res.status(400).json({ error: "Please provide at least one URL or uploaded document" });
     }
     if (!question || question.trim() === "") {
       return res.status(400).json({ error: "Please provide a question" });
     }
-    const vectorStore = await getOrCreateVectorStore(urls);
-    const result = await graph.invoke({ question, urls, vectorStore, conversationHistory: [] });
+    const vectorStore = await getOrCreateVectorStore(urls, uploadIds, normalizedRagConfig);
+    const result = await graph.invoke({ question, urls, vectorStore, conversationHistory: [], ragConfig: normalizedRagConfig, uploadIds });
     const formattedDocs = formatDocuments(result.documents ?? []);
     res.json({
       success: true,
